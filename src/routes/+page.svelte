@@ -14,7 +14,23 @@
 	import ImportModal from '$lib/components/ImportModal.svelte';
 </script>
 
-<main class="flex h-screen w-full overflow-hidden bg-zinc-50 font-sans text-zinc-900">
+<main class="flex h-screen w-full flex-col overflow-hidden bg-zinc-50 font-sans text-zinc-900">
+	<div class="grid shrink-0 grid-cols-3 items-center border-b border-zinc-200 bg-white px-4 py-2 shadow-sm">
+		<div></div>
+		<span class="text-center text-2xl font-semibold tracking-wide text-blue-800">Local First AI Editor</span>
+		<div class="flex justify-end">
+		<a
+			href="https://github.com/brianlmerritt/local-first-ai-editor/blob/main/DOCUMENTATION.md"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+		>
+			Documentation
+		</a>
+		</div>
+	</div>
+
+	<div class="flex min-h-0 flex-1 overflow-hidden">
 	{#if documentState.isLoaded}
 		{#if uiState.showExplorer}
 			<ExplorerPanel />
@@ -64,4 +80,5 @@
 	{#if uiState.showImportModal}
 		<ImportModal />
 	{/if}
+	</div>
 </main>
