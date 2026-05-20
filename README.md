@@ -148,8 +148,11 @@ npm run format
 
 ## Phase 3 Roadmap
 
+- [ ] **Configurable CODEX:** Expand the current Context Board for scenes into a full CODEX system with Top Level, Chapter, and Scene/Section
+- [ ] **Integrate CODEX:** Add support for lightRAG and integrate the existing TODO system
+- [ ] **Agentic editing support:** Everything is agentic these days - add support for Agentic editing / linting / todo / continuity.
 - [ ] **Multi-story support:** Add ability to open, switch between, and manage multiple independent projects.
-- [ ] **In-Editor AI:** Adding `/` commands into the editor (e.g. `/reword`, `/check_story`).
+- [ ] **In-Editor AI:** Adding `/` commands or bubble menus into the editor (e.g. `/reword`, `/check_story`).
 - [ ] **Inline Diff/Tracked Changes:** Inline rewrites and diff views (using tools like `prosemirror-multi-editor-diff` or Tiptap Snapshots) for applying AI suggestions directly.
 - [ ] **WebGPU / Local Browser AI:** Support downloading quantized models via WebLLM or Transformers.js for fully local offline AI generation.
 - [ ] **Beta Release:** Configure build pipelines and publish the compiled application for public Beta Testing.
