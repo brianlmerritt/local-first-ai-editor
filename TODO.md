@@ -112,9 +112,12 @@ Connecting the AI's thoughts back to the specific words in the editor.
 
 ## Phase 3: Next Features
 
+- [ ] **Configurable CODEX:** Expand the current Context Board for scenes into a full CODEX system with Top Level, Chapter, and Scene/Section
+- [ ] **Integrate CODEX:** Add support for lightRAG and integrate the existing TODO system
+- [ ] **Agentic editing support:** Everything is agentic these days - add support for Agentic editing / linting / todo / continuity.
 - [ ] **Multi-story support:** Add ability to edit multiple stories — open, switch between, and manage multiple independent projects.
 - [ ] **Collapsible Text Output:** Toggle visibility for raw output on "Text" recipe cards in the review panel.
-- [ ] **In-Editor AI:** Slash commands inside the editor (e.g. `/reword`, `/check_story`).
-- [ ] **Inline Diff/Tracked Changes:** Inline rewrites and diff views (e.g. `prosemirror-multi-editor-diff` or Tiptap Snapshots) for applying AI suggestions directly to the manuscript.
+- [ ] **In-Editor AI:** Adding `/` commands or bubble menus into the editor (e.g. `/reword`, `/check_story`).
+- [ ] **Inline Diff/Tracked Changes:** Inline rewrites and diff views (using tools like `prosemirror-multi-editor-diff` or Tiptap Snapshots) for applying AI suggestions directly.
 - [ ] **WebGPU / Local Browser AI:** Download and run quantized models (WebLLM or Transformers.js) for fully offline AI generation.
 - [ ] **Beta Release:** Configure static build pipeline and publish for public Beta Testing.

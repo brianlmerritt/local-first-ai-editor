@@ -72,10 +72,13 @@ The application will utilize an ultrawide-optimized 4-column layout, which grace
 
 ## 7. Phase 3 Requirements
 
+- **Configurable CODEX:** Expand the current Context Board for scenes into a full CODEX system with Top Level, Chapter, and Scene/Section.
+- **Integrate CODEX:** Add support for lightRAG and integrate the existing TODO system.
+- **Agentic editing support:** Add support for agentic editing, linting, todo handling, and continuity.
 - **Multi-story support:** Add ability to open, switch between, and manage multiple independent projects.
 - **Collapsible Text Output:** Toggle visibility for raw output on "Text" recipe cards in the review panel.
-- **In-Editor AI:** Slash commands inside the editor (e.g. `/reword`, `/check_story`).
-- **Inline Diff/Tracked Changes:** Inline rewrites and diff views (e.g. `prosemirror-multi-editor-diff` or Tiptap Snapshots) for applying AI suggestions directly to the manuscript.
+- **In-Editor AI:** Add slash commands or bubble menus inside the editor (e.g. `/reword`, `/check_story`).
+- **Inline Diff/Tracked Changes:** Inline rewrites and diff views (using tools like `prosemirror-multi-editor-diff` or Tiptap Snapshots) for applying AI suggestions directly to the manuscript.
 - **WebGPU / Local Browser AI:** Download and run quantized models (WebLLM or Transformers.js) for fully offline AI generation.
 - **Beta Release:** Configure static build pipeline and publish for public Beta Testing.
 
