@@ -8,13 +8,20 @@
 		type ScanResult,
 		type ImportOptions
 	} from '$lib/utils/importer';
-	import { X, Upload, FolderOpen, AlertTriangle, CheckCircle } from 'lucide-svelte';
+	import { scanObsidianVault, type ObsidianScanResult } from '$lib/import/obsidian/vaultScan';
+	import {
+		importObsidianVault,
+		type ObsidianImportMode,
+		type ObsidianImportOptions
+	} from '$lib/import/obsidian/vaultImport';
+	import { X, Upload, FolderOpen, AlertTriangle, CheckCircle, BookOpen } from 'lucide-svelte';
 
 	type Step = 'mode' | 'scan' | 'done' | 'error';
 
 	let step = $state<Step>('mode');
-	let mode = $state<'fresh' | 'overwrite'>('overwrite');
+	let mode = $state<'fresh' | 'overwrite' | 'codex-only'>('overwrite');
 	let scan = $state<ScanResult | null>(null);
+	let vaultScan = $state<ObsidianScanResult | null>(null);
 	let isScanning = $state(false);
 	let isImporting = $state(false);
 	let errorMsg = $state('');
@@ -31,10 +38,22 @@
 		settings: false
 	});
 
+	let vaultOptions = $state<ObsidianImportOptions>({
+		mode: 'overwrite',
+		codexNotes: true,
+		sceneNotes: true
+	});
+
+	// Keep vaultOptions.mode in sync with the selected mode
+	$effect(() => {
+		vaultOptions.mode = mode as ObsidianImportMode;
+	});
+
 	function close() {
 		uiState.showImportModal = false;
 		step = 'mode';
 		scan = null;
+		vaultScan = null;
 		errorMsg = '';
 	}
 
@@ -43,23 +62,34 @@
 		errorMsg = '';
 		try {
 			const root: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker({ mode: 'read' });
-			const result = await scanImportFolder(root);
-			scan = result;
-			options.mode = mode;
 
-			// Auto-uncheck options where nothing was found
-			if (!result.storyFiles.length) options.story = false;
-			if (!result.versionFiles.length) options.versions = false;
-			if (!result.recipeFiles.length) options.recipes = false;
-			if (!result.todoFiles.length) options.todos = false;
-			if (!result.contextFiles.length) options.context = false;
-			if (!result.chatHistoryFiles.length) options.historyChat = false;
-			if (!result.todoHistoryFiles.length) options.historyTodo = false;
-			if (!result.settingsFile) options.settings = false;
+			// Run both scans concurrently
+			const [regularResult, obsidianResult] = await Promise.all([
+				scanImportFolder(root),
+				scanObsidianVault(root)
+			]);
+
+			vaultScan = obsidianResult;
+
+			if (obsidianResult.isVault) {
+				// Obsidian vault detected — use vault import path
+				if (!Object.keys(obsidianResult.codexCountByType).length) vaultOptions.codexNotes = false;
+				if (!obsidianResult.sceneNotes.length) vaultOptions.sceneNotes = false;
+			} else {
+				// Regular export folder
+				scan = regularResult;
+				options.mode = mode as 'fresh' | 'overwrite';
+				if (!regularResult.storyFiles.length) options.story = false;
+				if (!regularResult.versionFiles.length) options.versions = false;
+				if (!regularResult.recipeFiles.length) options.recipes = false;
+				if (!regularResult.todoFiles.length) options.todos = false;
+				if (!regularResult.contextFiles.length) options.context = false;
+				if (!regularResult.chatHistoryFiles.length) options.historyChat = false;
+				if (!regularResult.todoHistoryFiles.length) options.historyTodo = false;
+				if (!regularResult.settingsFile) options.settings = false;
+			}
 
 			step = 'scan';
-
-			// store root handle for import step
 			rootHandle = root;
 		} catch (e: any) {
 			if (e.name !== 'AbortError') errorMsg = e.message || 'Failed to read folder.';
@@ -71,18 +101,28 @@
 	let rootHandle: FileSystemDirectoryHandle | null = null;
 
 	async function doImport() {
-		if (!rootHandle || !scan) return;
+		if (!rootHandle) return;
 		isImporting = true;
 		errorMsg = '';
 		try {
-			await importFromFolder(
-				rootHandle,
-				scan,
-				{ ...options, mode },
-				documentState.project,
-				documentState.ydoc,
-				settingsState
-			);
+			if (vaultScan?.isVault) {
+				await importObsidianVault(
+					rootHandle,
+					vaultScan,
+					vaultOptions,
+					documentState.project,
+					documentState.ydoc
+				);
+			} else if (scan) {
+				await importFromFolder(
+					rootHandle,
+					scan,
+					{ ...options, mode: mode as 'fresh' | 'overwrite' },
+					documentState.project,
+					documentState.ydoc,
+					settingsState
+				);
+			}
 			// Point activeSceneId at first scene if the current one is gone
 			const ids = documentState.project.scenes.map((s) => s.id);
 			if (!ids.includes(documentState.activeSceneId)) {
@@ -99,7 +139,7 @@
 	const count = (arr: any[]) => arr.length;
 
 	const findings = $derived(
-		scan
+		scan && !vaultScan?.isVault
 			? [
 					{ key: 'story', label: 'Story files', n: count(scan.storyFiles) },
 					{ key: 'versions', label: 'Version files', n: count(scan.versionFiles) },
@@ -142,7 +182,7 @@
 			{#if step === 'mode'}
 				<!-- Step 1: choose mode -->
 				<p class="mb-5 text-sm text-zinc-500">
-					Choose how to import. You'll then pick a folder that was previously exported from this app.
+					Choose how to import. You'll then pick a folder — either a regular project export or an Obsidian-compatible vault.
 				</p>
 
 				<div class="space-y-3">
@@ -165,6 +205,18 @@
 							</div>
 						</div>
 					</label>
+
+					<label class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors {mode === 'codex-only' ? 'border-indigo-300 bg-indigo-50' : 'border-zinc-200 hover:border-zinc-300'}">
+						<input type="radio" bind:group={mode} value="codex-only" class="mt-0.5 text-indigo-600" />
+						<div>
+							<div class="flex items-center gap-1.5 text-sm font-semibold text-zinc-800">
+								<BookOpen size={13} class="text-indigo-500" /> Codex Only
+							</div>
+							<div class="text-xs text-zinc-500">
+								Import context items from an Obsidian vault without replacing manuscript text. Useful for syncing codex notes back into the editor.
+							</div>
+						</div>
+					</label>
 				</div>
 
 				{#if mode === 'fresh'}
@@ -179,30 +231,88 @@
 				{/if}
 
 			{:else if step === 'scan'}
-				<!-- Step 2: review findings -->
-				<p class="mb-4 text-sm text-zinc-500">Found the following in the selected folder. Choose what to import.</p>
+				{#if vaultScan?.isVault}
+					<!-- Obsidian vault findings -->
+					<div class="mb-4 flex items-center gap-2">
+						<BookOpen size={15} class="text-indigo-500" />
+						<p class="text-sm font-semibold text-zinc-700">Obsidian vault detected</p>
+					</div>
+					<p class="mb-4 text-sm text-zinc-500">Choose what to import from the vault.</p>
 
-				<div class="space-y-1.5">
-					{#each findings as item}
-						{@const disabled = item.n === 0}
-						<label class="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 p-3 transition-colors {disabled ? 'opacity-40' : 'hover:border-indigo-200 hover:bg-indigo-50/30'} {!disabled && (options as any)[item.key] ? 'border-indigo-200 bg-indigo-50/50' : ''}">
+					{@const totalCodex = Object.values(vaultScan.codexCountByType).reduce((a, b) => a + b, 0)}
+					<div class="space-y-1.5">
+						<label class="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 p-3 transition-colors {totalCodex === 0 ? 'opacity-40' : 'hover:border-indigo-200 hover:bg-indigo-50/30'} {vaultOptions.codexNotes && totalCodex > 0 ? 'border-indigo-200 bg-indigo-50/50' : ''}">
 							<input
 								type="checkbox"
-								bind:checked={(options as any)[item.key]}
-								disabled={disabled}
+								bind:checked={vaultOptions.codexNotes}
+								disabled={totalCodex === 0}
 								class="h-4 w-4 rounded border-zinc-300 text-indigo-600"
 							/>
-							<span class="flex-1 text-sm font-medium text-zinc-800">{item.label}</span>
-							<span class="text-xs text-zinc-400">{item.n} file{item.n !== 1 ? 's' : ''}</span>
+							<span class="flex-1 text-sm font-medium text-zinc-800">Codex notes</span>
+							<span class="text-xs text-zinc-400">{totalCodex} note{totalCodex !== 1 ? 's' : ''}</span>
 						</label>
-					{/each}
-				</div>
 
-				{#if options.settings}
-					<div class="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-						<AlertTriangle size={14} class="mt-0.5 shrink-0" />
-						<span>API keys in imported settings are obfuscated — you will need to re-enter them after import.</span>
+						<label class="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 p-3 transition-colors {vaultScan.sceneNotes.length === 0 || mode === 'codex-only' ? 'opacity-40' : 'hover:border-indigo-200 hover:bg-indigo-50/30'} {vaultOptions.sceneNotes && vaultScan.sceneNotes.length > 0 && mode !== 'codex-only' ? 'border-indigo-200 bg-indigo-50/50' : ''}">
+							<input
+								type="checkbox"
+								bind:checked={vaultOptions.sceneNotes}
+								disabled={vaultScan.sceneNotes.length === 0 || mode === 'codex-only'}
+								class="h-4 w-4 rounded border-zinc-300 text-indigo-600"
+							/>
+							<span class="flex-1 text-sm font-medium text-zinc-800">
+								Scene notes
+								{#if mode === 'codex-only'}<span class="ml-1 text-xs text-zinc-400">(skipped in Codex Only mode)</span>{/if}
+							</span>
+							<span class="text-xs text-zinc-400">{vaultScan.sceneNotes.length} file{vaultScan.sceneNotes.length !== 1 ? 's' : ''}</span>
+						</label>
 					</div>
+
+					{#if Object.keys(vaultScan.codexCountByType).length > 0}
+						<div class="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+							<p class="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Codex notes by type</p>
+							<div class="space-y-0.5">
+								{#each Object.entries(vaultScan.codexCountByType) as [type, n]}
+									<div class="flex justify-between text-xs text-zinc-600">
+										<span class="capitalize">{type}</span>
+										<span class="text-zinc-400">{n}</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					{#if vaultScan.unknownFolders.length > 0}
+						<div class="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600">
+							<span class="font-semibold">Dynamic context folders detected:</span>
+							{vaultScan.unknownFolders.join(', ')}
+						</div>
+					{/if}
+				{:else}
+					<!-- Regular export findings -->
+					<p class="mb-4 text-sm text-zinc-500">Found the following in the selected folder. Choose what to import.</p>
+
+					<div class="space-y-1.5">
+						{#each findings as item}
+							{@const disabled = item.n === 0}
+							<label class="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 p-3 transition-colors {disabled ? 'opacity-40' : 'hover:border-indigo-200 hover:bg-indigo-50/30'} {!disabled && (options as any)[item.key] ? 'border-indigo-200 bg-indigo-50/50' : ''}">
+								<input
+									type="checkbox"
+									bind:checked={(options as any)[item.key]}
+									disabled={disabled}
+									class="h-4 w-4 rounded border-zinc-300 text-indigo-600"
+								/>
+								<span class="flex-1 text-sm font-medium text-zinc-800">{item.label}</span>
+								<span class="text-xs text-zinc-400">{item.n} file{item.n !== 1 ? 's' : ''}</span>
+							</label>
+						{/each}
+					</div>
+
+					{#if options.settings}
+						<div class="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+							<AlertTriangle size={14} class="mt-0.5 shrink-0" />
+							<span>API keys in imported settings are obfuscated — you will need to re-enter them after import.</span>
+						</div>
+					{/if}
 				{/if}
 
 				{#if errorMsg}
@@ -237,14 +347,14 @@
 
 			{:else if step === 'scan'}
 				<button
-					onclick={() => { step = 'mode'; scan = null; }}
+					onclick={() => { step = 'mode'; scan = null; vaultScan = null; }}
 					class="text-xs text-zinc-500 hover:text-zinc-800"
 				>
 					Back
 				</button>
 				<button
 					onclick={doImport}
-					disabled={isImporting || !Object.entries(options).some(([k, v]) => k !== 'mode' && v)}
+					disabled={isImporting || (vaultScan?.isVault ? !vaultOptions.codexNotes && !vaultOptions.sceneNotes : !Object.entries(options).some(([k, v]) => k !== 'mode' && v))}
 					class="flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:opacity-40"
 				>
 					<Upload size={15} />

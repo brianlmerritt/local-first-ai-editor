@@ -102,7 +102,7 @@ function domToYxml(parentDom: Element, parentY: Y.XmlElement | Y.XmlFragment) {
 	}
 }
 
-function setYjsContent(ydoc: Y.Doc, versionId: string, markdown: string) {
+export function setYjsContent(ydoc: Y.Doc, versionId: string, markdown: string) {
 	const html = marked(markdown) as string;
 	const dom = new DOMParser().parseFromString(html, 'text/html');
 	const fragment = ydoc.getXmlFragment('scene-' + versionId);

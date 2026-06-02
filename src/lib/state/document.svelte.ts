@@ -38,6 +38,8 @@ export interface ContextItem {
 	id: string;
 	title: string;
 	content: string;
+	/** Optional grouping type used for Obsidian vault export (e.g. 'character', 'location'). */
+	type?: string;
 }
 
 export interface TodoItem {

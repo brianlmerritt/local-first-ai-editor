@@ -121,3 +121,136 @@ Connecting the AI's thoughts back to the specific words in the editor.
 - [ ] **Inline Diff/Tracked Changes:** Inline rewrites and diff views (using tools like `prosemirror-multi-editor-diff` or Tiptap Snapshots) for applying AI suggestions directly.
 - [ ] **WebGPU / Local Browser AI:** Download and run quantized models (WebLLM or Transformers.js) for fully offline AI generation.
 - [ ] **Beta Release:** Configure static build pipeline and publish for public Beta Testing.
+
+---
+
+## Phase 3A: Obsidian-Compatible Codex Export
+
+> Export the editor's project data as an Obsidian-compatible vault with codex notes, templates, directory pages, scene/chapter notes, and wikilinks.
+
+- [ ] Add `ObsidianExportOptions` type (codex recipe, folder name, included categories).
+- [ ] Add export category checkbox: **Obsidian Vault / Codex** to the Export Modal.
+- [ ] Define default codex recipes with associated entry types:
+  - [ ] Minimal (Scene, Chapter)
+  - [ ] Fiction (Character, Location, Faction, Object, Scene, Scene Beat, Plot Thread, Motif, Mystery, Open Loop, Continuity Issue)
+  - [ ] Literary Fiction (Character, Relationship, Motif, Image, Symbol, Echo, Scene Beat, Emotional Turn, Contradiction, Theme Pressure)
+  - [ ] Research / Non-fiction (Concept, Claim, Source, Evidence, Theory, Method, Dataset, Citation, Counterclaim, Open Question)
+- [ ] Create stable ID generation utility (`src/lib/codex/stableIds.ts`) — deterministic, collision-resistant, prefix-typed (e.g. `char-brin-flip-7f3a`).
+- [ ] Add stable IDs to exported scene, chapter, and codex records (non-destructive: only add if absent).
+- [ ] Create filename sanitization utility — strip invalid characters, truncate, preserve human-readability.
+- [ ] Create wikilink generation utility (`src/lib/export/obsidian/wikilinks.ts`) — convert internal object references to `[[Display Name]]`; preserve aliases.
+- [ ] Create YAML frontmatter serializer (`src/lib/export/obsidian/frontmatter.ts`) — produces valid, human-readable YAML; never exposes API keys.
+- [ ] Create vault folder structure generator (`src/lib/export/obsidian/vaultExport.ts`):
+  - [ ] `00 Index/`
+  - [ ] `Codex/<Type>/`
+  - [ ] `Scenes/`
+  - [ ] `Chapters/`
+  - [ ] `_templates/`
+  - [ ] `_changelog/`
+  - [ ] `Tasks/`
+  - [ ] `Boards/`
+- [ ] Generate default `_templates/*.md` files for each active codex recipe entry type.
+- [ ] Generate directory/index pages (`src/lib/export/obsidian/directories.ts`) with Dataview-compatible code blocks for each entry type.
+- [ ] Export scene notes with full YAML frontmatter (chapter, scene, story_order, POV, characters, location, timeline, threads, open_loops, foreshadows, pays_off, status, version_id, final_output).
+- [ ] Export chapter notes with YAML frontmatter and links to member scenes.
+- [ ] Export context board entries (objectives, context items) as Obsidian codex notes with appropriate type.
+- [ ] Export changelog notes for rename/merge events if present (`src/lib/export/obsidian/changelog.ts`).
+- [ ] Unit tests:
+  - [ ] Stable ID generation (determinism, uniqueness, prefix typing)
+  - [ ] Filename sanitization (invalid characters, length, edge cases)
+  - [ ] Wikilink generation (display name, alias fallback, escaping)
+  - [ ] YAML frontmatter generation (valid output, no API key leakage)
+  - [ ] Dataview directory page generation
+  - [ ] Template file generation for each codex recipe
+- [ ] Playwright export smoke test: export a minimal project as Obsidian vault and verify folder structure and file presence.
+
+---
+
+## Phase 3B: Obsidian-Compatible Codex Import
+
+> Extend the importer to detect and ingest Obsidian vault files including codex notes, scene notes, templates, and changelog records.
+
+- [ ] Extend import scanner (`src/lib/import/obsidian/vaultScan.ts`) to detect Obsidian vault structure (`00 Index/`, `Codex/`, `Scenes/`, `Chapters/`, `_templates/`, `_changelog/`, `Tasks/`, `Boards/`).
+- [ ] Parse YAML frontmatter from Obsidian Markdown files (`src/lib/import/obsidian/frontmatterParse.ts`).
+- [ ] Detect codex entries by `type` field in frontmatter.
+- [ ] Detect and report notes missing `id` fields as warnings (not fatal).
+- [ ] Match imported notes to existing records by stable `id`; fall back to filename/title matching only when no ID exists.
+- [ ] Parse wikilinks from YAML fields (`src/lib/import/obsidian/wikilinkParse.ts`).
+- [ ] Parse `aliases` fields.
+- [ ] Parse scene notes (chapter, scene, story_order, characters, location, threads, etc.).
+- [ ] Parse chapter notes.
+- [ ] Parse template files (store as codex recipe templates).
+- [ ] Parse changelog rename records (`src/lib/import/obsidian/changelogParse.ts`).
+- [ ] Parse changelog merge records.
+- [ ] Add import mode: **Codex Only** — import codex/templates/todos without replacing manuscript text.
+- [ ] Add import mode: **Tasks Only** — import only Obsidian task file changes.
+- [ ] Update import findings summary UI with Obsidian-specific counts (codex notes by type, scene notes, chapter notes, templates, todos, changelog records).
+- [ ] Add conflict reporting (`src/lib/import/obsidian/conflictReport.ts`): duplicate IDs, missing IDs, unknown types, invalid YAML, unresolved wikilinks.
+- [ ] Unit tests for vault scanning (directory detection, file enumeration).
+- [ ] Unit tests for frontmatter parsing (valid, malformed, missing fields).
+- [ ] Unit tests for changelog record parsing (rename, merge).
+- [ ] Playwright import smoke test using a small fixture vault (`tests/fixtures/obsidian-vault-minimal/`).
+
+---
+
+## Phase 3C: CardBoard-Compatible Todo Export/Import
+
+> Export todos as CommonMark checkbox tasks readable by Obsidian task plugins and CardBoard; import changed task state back into the editor.
+
+- [ ] Define Markdown task export format (spec doc or inline comment).
+- [ ] Add stable `editor_id` to todos if not already present.
+- [ ] Add block ID generation for todos (e.g. `^todo-8f13`).
+- [ ] Map todo status to Obsidian tags: `#status/backlog`, `#status/triaged`, `#status/doing`, `#status/blocked`, `#status/done`, `#status/ignored`.
+- [ ] Map todo kind to tags: `#kind/continuity`, `#kind/research`, `#kind/revision`, `#kind/foreshadowing`, `#kind/payoff`, `#kind/style`, `#kind/source-check`.
+- [ ] Map todo priority to tags: `#priority/high`, `#priority/medium`, `#priority/low`.
+- [ ] Export all todos to `Tasks/All Tasks.md` with inline fields (`passage::`, `related::`, `source::`, `editor_id::`).
+- [ ] Export category-specific task files: `Continuity Tasks.md`, `Research Tasks.md`, `Revision Tasks.md`.
+- [ ] Generate optional Kanban board files in `Boards/` (`src/lib/export/obsidian/todos.ts`).
+- [ ] Parse Markdown task lines on import (`src/lib/import/obsidian/todoParse.ts`).
+- [ ] Parse task block IDs (`^todo-…`).
+- [ ] Parse inline fields: `passage::`, `related::`, `source::`, `editor_id::`.
+- [ ] Parse status/kind/priority tags.
+- [ ] Parse `@due(YYYY-MM-DD)` dates.
+- [ ] Parse completed checkbox state (`- [x]`).
+- [ ] Match parsed todos to editor state by `editor_id::` first, then block ID.
+- [ ] Update editor todo state from imported values (last-modified-wins for MVP; record conflict warnings).
+- [ ] Round-trip test: export todos → modify one in Markdown → import → verify editor state updated.
+- [ ] Unit tests for Markdown task serialization (all tag types, inline fields, block IDs).
+- [ ] Unit tests for Markdown task parsing (completed, incomplete, missing fields, malformed lines).
+- [ ] Fixture test for CardBoard-style task board compatibility (`tests/fixtures/cardboard-tasks/`).
+
+---
+
+## Phase 3D: Rename, Alias, and Change Control
+
+> Support rename and merge change records in the codex so stable IDs and aliases survive display-name changes.
+
+- [ ] Define `CodexChangeRecord` type (`src/lib/codex/changeRecords.ts`) supporting: `rename`, `merge`, `split`, `deprecate`, `alias-added`.
+- [ ] Add utility to preserve aliases on rename — copies old canonical name to `aliases[]` and `renamed_from[]`.
+- [ ] Export rename changelog records to `_changelog/Rename Log.md`.
+- [ ] Export merge changelog records to `_changelog/Merge Log.md`.
+- [ ] Import changelog records and apply to editor codex state.
+- [ ] Apply imported rename records: update `aliases` non-destructively.
+- [ ] Apply imported merge records as suggestions/warnings rather than automatic destructive merges.
+- [ ] Unit test: "Yan Darn → Brin Flip" rename — verify alias preserved, changelog record generated, ID unchanged.
+- [ ] Unit test: alias preservation round-trip (export → import → aliases intact).
+- [ ] Unit test: changelog record round-trip (rename, merge).
+- [ ] Unit test: malformed changelog YAML is reported, not fatal.
+
+---
+
+## Phase 3E: Documentation and Release Notes
+
+> Update user-facing documentation only after all implementation tasks and tests pass.
+
+- [ ] Update `README.md` with Obsidian vault support section.
+- [ ] Update `DOCUMENTATION.md` with user workflows:
+  - [ ] Exporting an Obsidian vault from an existing project.
+  - [ ] Opening the exported vault in Obsidian.
+  - [ ] Using generated templates for codex entries.
+  - [ ] Using Dataview directory pages.
+  - [ ] Using CardBoard-compatible task files.
+  - [ ] Importing changed tasks/codex notes back into the editor.
+- [ ] Add caveats: File System Access API browser support; Dataview/CardBoard/Kanban are optional plugins; the vault is plain Markdown without Obsidian.
+- [ ] Add release notes entry for Phases 3A–3D.
+
